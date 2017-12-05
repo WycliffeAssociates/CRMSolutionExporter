@@ -7,6 +7,7 @@ using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Tooling.Connector;
 using Microsoft.Crm.Sdk.Messages;
 using System.IO;
+using Microsoft.Xrm.Sdk.Query;
 
 namespace CRMSolutionExporter
 {
@@ -14,29 +15,54 @@ namespace CRMSolutionExporter
     {
         static void Main(string[] args)
         {
-            if (args.Length < 4)
+            CommandLineArguments arguments = new CommandLineArguments();
+            if (!CommandLine.Parser.Default.ParseArguments(args, arguments))
             {
-                Usage();
-                return;
+                Environment.Exit(1);
             }
 
-            string connectionString = args[0];
-            string solutionName = args[1];
-            string fileName = args[2];
-            string version = args[3];
+            CrmServiceClient service = new CrmServiceClient(arguments.ConnectionString);
+            if (!service.IsReady)
+            {
+                Console.WriteLine("Error connecting to CRM environment please check connection string");
+                Environment.Exit(2);
+            }
 
-            CrmServiceClient service = new CrmServiceClient(connectionString);
+            // Check solution
+            Console.WriteLine("Checking solution");
+            QueryExpression query = new QueryExpression("solution");
+            query.ColumnSet = new ColumnSet("uniquename", "friendlyname", "version");
+            query.Criteria.AddCondition("uniquename", ConditionOperator.Equal, arguments.SolutionName);
+            var result = service.RetrieveMultiple(query);
+
+            if (result.Entities.Count == 0)
+            {
+                Console.WriteLine("Solution with the unique name " + arguments.SolutionName + " does not exist");
+                Environment.Exit(3);
+            }
+
+            string friendlyName = (string)result.Entities[0]["friendlyname"];
+            string version = (string)result.Entities[0]["version"];
+
 
             Console.WriteLine("Publishing");
             PublishAllXmlRequest publishRequest = new PublishAllXmlRequest();
             service.Execute(publishRequest);
 
+            //Figure out the file name for the resulting file
+            string fileName = arguments.FileName;
+            if (fileName == null)
+            {
+                fileName = arguments.SolutionName + version.Replace('.', '_') + ".zip";
+            }
+
             Console.WriteLine("Exporting");
+            Console.WriteLine("Solution: " + friendlyName + " version: " + version);
             ExportSolutionRequest request = new ExportSolutionRequest()
             {
-                SolutionName = solutionName,
-                Managed = false,
-                TargetVersion = version
+                SolutionName = arguments.SolutionName,
+                Managed = arguments.Managed,
+                TargetVersion = arguments.TargetVersion
             };
 
             ExportSolutionResponse response = (ExportSolutionResponse)service.Execute(request);
@@ -44,11 +70,6 @@ namespace CRMSolutionExporter
             Console.WriteLine("Writing");
             File.WriteAllBytes(fileName, response.ExportSolutionFile);
 
-        }
-
-        private static void Usage()
-        {
-            Console.WriteLine("Usage CRMSolutionExporter.exe <connection-string> <solution-name> <resulting-file> <target-version>");
         }
     }
 }

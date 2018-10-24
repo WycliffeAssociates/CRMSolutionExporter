@@ -62,8 +62,11 @@ namespace CRMSolutionExporter
             {
                 SolutionName = arguments.SolutionName,
                 Managed = arguments.Managed,
-                TargetVersion = arguments.TargetVersion
             };
+            if (!string.IsNullOrEmpty(arguments.TargetVersion))
+            {
+                request.TargetVersion = arguments.TargetVersion;
+            }
 
             ExportSolutionResponse response = (ExportSolutionResponse)service.Execute(request);
 

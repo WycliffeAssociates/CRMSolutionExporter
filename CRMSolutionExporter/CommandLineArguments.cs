@@ -16,7 +16,7 @@ namespace CRMSolutionExporter
         public string SolutionName { get; set; }
         [Option("file", HelpText = "Name of the resulting file. If not supplied a name will be generated for you")]
         public string FileName { get; set; }
-        [Option("target", Required = true, HelpText = "The target version of CRM to export for")]
+        [Option("target", Required = false, HelpText = "The target version of CRM to export for. Don't use for version 9.0")]
         public string TargetVersion { get; set; }
         [Option("managed", DefaultValue = false, HelpText ="Whether or not the solution should be exported as managed")]
         public bool Managed { get; set; }
